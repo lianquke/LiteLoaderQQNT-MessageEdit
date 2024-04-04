@@ -16,10 +16,6 @@ const editIconDark = `
 </i>
 `;
 
-const SEPARATOR_HTML = `
-<div class="q-context-menu-separator" role="separator"></div>
-`;
-
 function generateEditHtml() {
   let editIcon = editIconLight;
   var qThemeValue = document.body.getAttribute("q-theme");
@@ -30,20 +26,94 @@ function generateEditHtml() {
       editIcon = editIconDark;
     }
   }
-  return `
-<a
-  id="edit_message_lqk"
-  class="q-context-menu-item q-context-menu-item--normal"
-  aria-disabled="false"
-  role="menuitem"
-  tabindex="-1"
->
-  <div class="q-context-menu-item__icon q-context-menu-item__head">
-${editIcon}
-  </div>
-  <span class="q-context-menu-item__text">编辑消息</span>
-</a>
-`;
+  return `${editIcon}`;
+}
+
+/**
+ * 右键菜单插入功能方法
+ * @param {Element} qContextMenu 右键菜单元素
+ * @param {String} icon SVG字符串
+ * @param {String} title 选项显示名称
+ * @param {Function} callback 回调函数
+ */
+function addQContextMenu(qContextMenu, icon, title, callback) {
+  const tempEl = document.createElement("div");
+  tempEl.innerHTML = document
+    .querySelector(`.q-context-menu :not([disabled="true"])`)
+    .outerHTML.replace(/<!---->/g, "");
+  const item = tempEl.firstChild;
+  item.id = "web-search";
+  if (item.querySelector(".q-icon")) {
+    item.querySelector(".q-icon").innerHTML = icon;
+  }
+  if (item.classList.contains("q-context-menu-item__text")) {
+    item.innerText = title;
+  } else {
+    item.querySelector(".q-context-menu-item__text").innerText = title;
+  }
+  item.addEventListener("click", () => {
+    callback();
+    qContextMenu.remove();
+  });
+  qContextMenu.appendChild(item);
+}
+
+var hasInjected = false;
+var targetEvent = null;
+/**
+ * 右键菜单监听
+ */
+function addMainQContextMenu(event) {
+  targetEvent = event;
+  if (hasInjected) return;
+
+  new MutationObserver(() => {
+    const qContextMenu = document.querySelector(".q-context-menu");
+
+    if (qContextMenu) {
+      console.log("qContextMenu-->");
+      console.log(qContextMenu);
+
+      hasInjected = true;
+
+      addQContextMenu(
+        qContextMenu,
+        generateEditHtml(),
+        "编辑消息",
+        async () => {
+          // 获取最里层元素
+          const textNormal = targetEvent.querySelector(".text-normal");
+          const targetElement = textNormal ? textNormal : targetEvent;
+          const { innerText: rawText } = targetElement;
+          if (rawText) {
+            Swal.fire({
+              title: "编辑消息内容",
+              input: "text",
+              inputAttributes: {
+                autocapitalize: "off",
+              },
+              inputValue: rawText,
+              showCancelButton: true,
+              confirmButtonText: "确认",
+              cancelButtonText: "取消",
+              showLoaderOnConfirm: true,
+              preConfirm: (input) => {
+                if (input.trim() === "") {
+                  Swal.showValidationMessage("请输入内容");
+                }
+                return input;
+              },
+              allowOutsideClick: () => !Swal.isLoading(),
+            }).then((result) => {
+              if (result.isConfirmed) {
+                targetElement.innerText = `${result.value}`;
+              }
+            });
+          }
+        }
+      );
+    }
+  }).observe(document.querySelector("body"), { childList: true });
 }
 
 function menuEventListener(event) {
@@ -54,54 +124,11 @@ function menuEventListener(event) {
       classList[0]
     )
   ) {
-    // 获取右键菜单
-    const qContextMenu = document.querySelector("#qContextMenu");
-    // 插入分隔线
-    qContextMenu.insertAdjacentHTML("beforeend", SEPARATOR_HTML);
-    // 插入编辑消息
-    qContextMenu.insertAdjacentHTML("beforeend", generateEditHtml());
-    // 调整右键菜单位置
-    const rect = qContextMenu.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight) {
-      qContextMenu.style.top = `${window.innerHeight - rect.height - 8}px`;
-    }
-    // 按键监听
-    const edit_message = qContextMenu.querySelector("#edit_message_lqk");
-    edit_message.addEventListener("click", () => {
-      // 获取最里层元素
-      const textNormal = target.querySelector(".text-normal");
-      const targetElement = textNormal ? textNormal : target;
-      const { innerText: rawText } = targetElement;
-      if (rawText) {
-        Swal.fire({
-          title: "编辑消息内容",
-          input: "text",
-          inputAttributes: {
-            autocapitalize: "off",
-          },
-          inputValue: rawText,
-          showCancelButton: true,
-          confirmButtonText: "确认",
-          cancelButtonText: "取消",
-          showLoaderOnConfirm: true,
-          preConfirm: (input) => {
-            if (input.trim() === "") {
-              Swal.showValidationMessage("请输入内容");
-            }
-            return input;
-          },
-          allowOutsideClick: () => !Swal.isLoading(),
-        }).then((result) => {
-          if (result.isConfirmed) {
-            targetElement.innerText = `${result.value}`;
-          }
-        });
-      }
-      // 关闭右键菜单
-      qContextMenu.remove();
-    });
+    console.log("lqk-message-edit: 触发右键菜单");
+    addMainQContextMenu(target);
   }
 }
+
 // 页面加载完成时触发
 function onLoad() {
   const before_js = document.querySelector("#mimo_msg_js");
@@ -127,7 +154,7 @@ function onLoad() {
   script.src = `https://cdn.jsdelivr.net/npm/sweetalert2@11.0.20/dist/sweetalert2.min.js`;
   document.head.appendChild(script);
 
-  document.addEventListener("contextmenu",menuEventListener);
+  document.addEventListener("contextmenu", menuEventListener);
 }
 
 onLoad();
