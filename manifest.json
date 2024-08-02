@@ -6,7 +6,7 @@
     "description": "聊天界面，右键点击文本消息，选择【编辑消息内容】编辑即可",
     "version": "1.0.8",
     "icon": "./icon.png",
-    "author": [{
+    "authors": [{
             "name": "MIMO",
             "link": "https://github.com/mimocvb"
         }, {
